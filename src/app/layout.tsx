@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import Link from "next/link";
+import SiteNav from "@/components/SiteNav";
 import "./globals.css";
 
 const sans = DM_Sans({
@@ -39,20 +40,7 @@ export default function RootLayout({
                   Peak Paths
                 </span>
               </Link>
-              <nav className="flex items-center gap-4 text-sm">
-                <Link
-                  href="/"
-                  className="text-mountain-300 transition hover:text-mountain-100"
-                >
-                  Climbs
-                </Link>
-                <Link
-                  href="/upload"
-                  className="rounded-lg bg-summit-500/90 px-4 py-2 font-medium text-mountain-950 transition hover:bg-summit-400"
-                >
-                  Upload GPX
-                </Link>
-              </nav>
+              <SiteNav />
             </div>
           </header>
 

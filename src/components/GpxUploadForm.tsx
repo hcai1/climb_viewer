@@ -38,6 +38,11 @@ export default function GpxUploadForm() {
 
       const data = await res.json();
 
+      if (res.status === 401) {
+        router.push("/login?next=/upload");
+        return;
+      }
+
       if (!res.ok) {
         setError(data.error ?? "Upload failed.");
         return;

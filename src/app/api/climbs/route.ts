@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
 import { computeBounds, computeStats, parseGpx } from "@/lib/gpx";
 import { listClimbs, saveClimb, seedSampleClimb } from "@/lib/storage";
 
@@ -9,6 +10,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = requireAdmin();
+  if (authError) return authError;
   try {
     const formData = await request.formData();
     const file = formData.get("gpx");

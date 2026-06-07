@@ -4,7 +4,8 @@ Showcase your mountain climbs with interactive 3D terrain, GPX route overlays, e
 
 ## Features
 
-- **GPX upload** — drag and drop `.gpx` files from Garmin, Strava exports, or any GPS app
+- **Owner-only uploads** — only you can add GPX files after signing in with your password
+- **Persistent storage** — climbs are saved to disk and reload every time you visit
 - **3D mountain view** — Mapbox terrain with your route traced on the landscape (rotate, zoom, pitch)
 - **Stats dashboard** — distance, elevation gain, duration, heart rate, speed
 - **Charts** — elevation profile and heart rate over distance
@@ -55,9 +56,11 @@ Edit `.env.local`:
 
 ```
 NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_token_here
+ADMIN_PASSWORD=choose_a_strong_private_password
+SESSION_SECRET=any_long_random_string
 ```
 
-4. Start the dev server:
+5. Start the dev server:
 
 ```powershell
 npm run dev
@@ -69,9 +72,13 @@ A sample **Mount Washington** climb is included and loads automatically on first
 
 ## Usage
 
-1. Click **Upload GPX** and add your track file with a name and date.
-2. Open any climb card to see the 3D map, summary stats, and charts.
-3. Share the climb URL — each climb has its own page at `/climbs/[id]`.
+**Viewers** can browse all climbs without signing in.
+
+**You (owner):**
+1. Click **Owner sign in** and enter your `ADMIN_PASSWORD`.
+2. Click **Upload GPX** and add your track file with a name and date.
+3. Climbs are saved in `data/climbs/` and stay available on every visit.
+4. Share any climb URL — each has its own page at `/climbs/[id]`.
 
 ## GPX data supported
 
@@ -85,7 +92,7 @@ peak-paths/
 ├── src/app/           # Pages and API routes
 ├── src/components/    # 3D map, charts, upload form
 ├── src/lib/           # GPX parser, storage, types
-└── data/climbs/       # Uploaded climb JSON (gitignored)
+└── data/climbs/       # Saved climbs (persists locally, gitignored)
 ```
 
 ## Tech stack

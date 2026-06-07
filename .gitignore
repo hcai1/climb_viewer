@@ -32,8 +32,9 @@ yarn-error.log*
 .env
 .env*.local
 
-# uploaded climb data
+# uploaded climb data (persists on disk between visits; not committed to git)
 /data/climbs/*.json
+!data/climbs/.gitkeep
 
 # typescript
 *.tsbuildinfo
