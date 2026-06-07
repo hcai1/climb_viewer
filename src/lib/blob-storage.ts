@@ -7,7 +7,7 @@ function climbPath(id: string) {
   return `climbs/${id}.json`;
 }
 
-function useBlobStorage() {
+function hasBlobToken() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
 
@@ -50,16 +50,16 @@ function toListItem(climb: Climb): ClimbListItem {
 }
 
 export function blobStorageEnabled() {
-  return useBlobStorage();
+  return hasBlobToken();
 }
 
 export async function blobListClimbs(): Promise<ClimbListItem[]> {
-  if (!useBlobStorage()) return [];
+  if (!hasBlobToken()) return [];
   return readManifest();
 }
 
 export async function blobGetClimb(id: string): Promise<Climb | null> {
-  if (!useBlobStorage()) return null;
+  if (!hasBlobToken()) return null;
   return readBlobJson<Climb>(climbPath(id));
 }
 
@@ -80,7 +80,7 @@ export async function blobSaveClimb(
 }
 
 export async function blobDeleteClimb(id: string): Promise<boolean> {
-  if (!useBlobStorage()) return false;
+  if (!hasBlobToken()) return false;
 
   const { blobs } = await list({ prefix: climbPath(id), limit: 1 });
   const blob = blobs.find((entry) => entry.pathname === climbPath(id));
