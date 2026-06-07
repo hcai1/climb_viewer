@@ -77,8 +77,26 @@ A sample **Mount Washington** climb is included and loads automatically on first
 **You (owner):**
 1. Click **Owner sign in** and enter your `ADMIN_PASSWORD`.
 2. Click **Upload GPX** and add your track file with a name and date.
-3. Climbs are saved in `data/climbs/` and stay available on every visit.
+3. Climbs are saved permanently — locally in `data/climbs/`, or on Vercel via Blob storage.
 4. Share any climb URL — each has its own page at `/climbs/[id]`.
+
+## Deploy to Vercel
+
+`.env.local` is **not** uploaded to Vercel. You must set environment variables in the dashboard.
+
+1. Push the project to GitHub and import it in [vercel.com](https://vercel.com).
+2. In your Vercel project go to **Settings → Environment Variables** and add:
+
+| Variable | Value |
+|----------|-------|
+| `ADMIN_PASSWORD` | Your private upload password |
+| `SESSION_SECRET` | A long random string |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | Your Mapbox token |
+
+3. Go to **Storage → Create Database → Blob**, connect it to this project. Vercel adds `BLOB_READ_WRITE_TOKEN` automatically — this is required so uploads persist (the server filesystem on Vercel is read-only).
+4. Click **Deployments → Redeploy** (required after adding env vars).
+
+Then sign in at `/login` with your `ADMIN_PASSWORD`.
 
 ## GPX data supported
 

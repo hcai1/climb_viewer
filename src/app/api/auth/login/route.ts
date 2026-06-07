@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   createSessionToken,
+  getAdminConfigError,
   getAdminPassword,
   sessionCookieOptions,
   SESSION_COOKIE,
@@ -9,10 +10,7 @@ import {
 
 export async function POST(request: NextRequest) {
   if (!getAdminPassword()) {
-    return NextResponse.json(
-      { error: "Admin password is not configured on the server." },
-      { status: 503 }
-    );
+    return NextResponse.json({ error: getAdminConfigError() }, { status: 503 });
   }
 
   let password = "";

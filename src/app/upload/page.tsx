@@ -1,17 +1,15 @@
 import { redirect } from "next/navigation";
 import GpxUploadForm from "@/components/GpxUploadForm";
-import { getAdminPassword, isAdmin } from "@/lib/auth";
+import { getAdminConfigError, isAdmin } from "@/lib/auth";
 
 export default function UploadPage() {
-  if (!getAdminPassword()) {
+  const configError = getAdminConfigError();
+
+  if (configError) {
     return (
       <div className="mx-auto max-w-2xl">
         <h1 className="font-display text-3xl text-mountain-100">Upload disabled</h1>
-        <p className="mt-2 text-mountain-300">
-          Set <code className="text-summit-400">ADMIN_PASSWORD</code> in{" "}
-          <code className="text-summit-400">.env.local</code> to enable owner
-          uploads.
-        </p>
+        <p className="mt-2 text-mountain-300">{configError}</p>
       </div>
     );
   }

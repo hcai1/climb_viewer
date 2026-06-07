@@ -18,6 +18,18 @@ export function getAdminPassword(): string | null {
   return password || null;
 }
 
+export function getAdminConfigError(): string {
+  if (getAdminPassword()) return "";
+
+  if (process.env.VERCEL) {
+    return (
+      "Admin password is not configured on Vercel. Open your project in the Vercel dashboard → Settings → Environment Variables, add ADMIN_PASSWORD (and SESSION_SECRET), then redeploy."
+    );
+  }
+
+  return "Admin password is not configured. Add ADMIN_PASSWORD to .env.local and restart the dev server.";
+}
+
 function sign(payload: string): string {
   return createHmac("sha256", getSessionSecret())
     .update(payload)
@@ -65,10 +77,7 @@ export function isAdmin(): boolean {
 export function requireAdmin(): NextResponse | null {
   if (!getAdminPassword()) {
     return NextResponse.json(
-      {
-        error:
-          "Uploads are disabled. Set ADMIN_PASSWORD in .env.local on the server.",
-      },
+      { error: getAdminConfigError() },
       { status: 503 }
     );
   }
