@@ -35,8 +35,10 @@ export default function SiteProfileForm({ initial }: SiteProfileFormProps) {
         return;
       }
 
+      setProfile(data);
       setMessage("Site updated. Visitors will see your personalized profile.");
       router.refresh();
+      router.push("/");
     } catch {
       setError("Could not save settings.");
     } finally {

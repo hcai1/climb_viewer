@@ -32,16 +32,14 @@ export function getDefaultSiteProfile(): SiteProfile {
 }
 
 export function mergeSiteProfile(
-  stored: Partial<SiteProfile> | null,
+  stored: SiteProfile,
   defaults: SiteProfile
 ): SiteProfile {
-  if (!stored) return defaults;
-
   return {
-    ownerName: stored.ownerName?.trim() || defaults.ownerName,
-    siteTitle: stored.siteTitle?.trim() || defaults.siteTitle,
-    tagline: stored.tagline?.trim() || defaults.tagline,
-    bio: stored.bio?.trim() || defaults.bio,
-    footer: stored.footer?.trim() || defaults.footer,
+    ownerName: stored.ownerName || defaults.ownerName,
+    siteTitle: stored.siteTitle || defaults.siteTitle,
+    tagline: stored.tagline || defaults.tagline,
+    bio: stored.bio || defaults.bio,
+    footer: stored.footer || defaults.footer,
   };
 }

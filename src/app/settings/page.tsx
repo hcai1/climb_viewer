@@ -3,6 +3,9 @@ import SiteProfileForm from "@/components/SiteProfileForm";
 import { isAdmin } from "@/lib/auth";
 import { getSiteProfile } from "@/lib/site-profile-storage";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function SettingsPage() {
   if (!isAdmin()) {
     redirect("/login?next=/settings");

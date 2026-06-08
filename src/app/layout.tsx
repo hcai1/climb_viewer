@@ -5,6 +5,9 @@ import SiteNav from "@/components/SiteNav";
 import { getSiteProfile } from "@/lib/site-profile-storage";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const sans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-sans",

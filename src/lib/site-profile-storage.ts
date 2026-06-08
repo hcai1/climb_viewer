@@ -15,18 +15,44 @@ function blobAccess(): "public" | "private" {
   return process.env.BLOB_ACCESS === "public" ? "public" : "private";
 }
 
+function putOptions(access: "public" | "private") {
+  return {
+    access,
+    contentType: "application/json",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  } as const;
+}
+
+function normalizeProfile(profile: SiteProfile): SiteProfile {
+  return {
+    ownerName: profile.ownerName.trim(),
+    siteTitle: profile.siteTitle.trim(),
+    tagline: profile.tagline.trim(),
+    bio: profile.bio.trim(),
+    footer: profile.footer.trim(),
+  };
+}
+
 async function readBlobProfile(): Promise<SiteProfile | null> {
   if (!blobStorageEnabled()) return null;
 
-  try {
-    const result = await get(PROFILE_BLOB_PATH, { access: blobAccess() });
-    if (!result || result.statusCode !== 200 || !result.stream) return null;
+  const modes: Array<"private" | "public"> =
+    blobAccess() === "public" ? ["public", "private"] : ["private", "public"];
 
-    const text = await new Response(result.stream).text();
-    return JSON.parse(text) as SiteProfile;
-  } catch {
-    return null;
+  for (const access of modes) {
+    try {
+      const result = await get(PROFILE_BLOB_PATH, { access });
+      if (!result || result.statusCode !== 200 || !result.stream) continue;
+
+      const text = await new Response(result.stream).text();
+      return normalizeProfile(JSON.parse(text) as SiteProfile);
+    } catch (error) {
+      console.error(`Failed to read site profile (${access}):`, error);
+    }
   }
+
+  return null;
 }
 
 async function writeBlobProfile(profile: SiteProfile) {
@@ -34,21 +60,11 @@ async function writeBlobProfile(profile: SiteProfile) {
   const access = blobAccess();
 
   try {
-    await put(PROFILE_BLOB_PATH, body, {
-      access,
-      contentType: "application/json",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
+    await put(PROFILE_BLOB_PATH, body, putOptions(access));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (access === "private" && message.toLowerCase().includes("access")) {
-      await put(PROFILE_BLOB_PATH, body, {
-        access: "public",
-        contentType: "application/json",
-        addRandomSuffix: false,
-        allowOverwrite: true,
-      });
+      await put(PROFILE_BLOB_PATH, body, putOptions("public"));
       return;
     }
     throw error;
@@ -58,7 +74,7 @@ async function writeBlobProfile(profile: SiteProfile) {
 async function readFileProfile(): Promise<SiteProfile | null> {
   try {
     const raw = await fs.readFile(PROFILE_FILE_PATH, "utf-8");
-    return JSON.parse(raw) as SiteProfile;
+    return normalizeProfile(JSON.parse(raw) as SiteProfile);
   } catch {
     return null;
   }
@@ -73,22 +89,36 @@ export async function getSiteProfile(): Promise<SiteProfile> {
   const defaults = getDefaultSiteProfile();
 
   if (blobStorageEnabled()) {
-    return mergeSiteProfile(await readBlobProfile(), defaults);
+    const stored = await readBlobProfile();
+    if (stored) return mergeSiteProfile(stored, defaults);
+    return defaults;
   }
 
   if (process.env.VERCEL) {
     return defaults;
   }
 
-  return mergeSiteProfile(await readFileProfile(), defaults);
+  const stored = await readFileProfile();
+  if (stored) return mergeSiteProfile(stored, defaults);
+  return defaults;
 }
 
 export async function saveSiteProfile(profile: SiteProfile): Promise<SiteProfile> {
-  const merged = mergeSiteProfile(profile, getDefaultSiteProfile());
+  const cleaned = normalizeProfile(profile);
+
+  if (!cleaned.ownerName || !cleaned.siteTitle || !cleaned.tagline || !cleaned.bio) {
+    throw new Error("Name, site title, tagline, and bio are required.");
+  }
 
   if (blobStorageEnabled()) {
-    await writeBlobProfile(merged);
-    return merged;
+    await writeBlobProfile(cleaned);
+
+    const saved = await readBlobProfile();
+    if (!saved) {
+      throw new Error("Settings were saved but could not be read back. Check Blob storage access.");
+    }
+
+    return saved;
   }
 
   if (process.env.VERCEL) {
@@ -97,8 +127,8 @@ export async function saveSiteProfile(profile: SiteProfile): Promise<SiteProfile
     );
   }
 
-  await writeFileProfile(merged);
-  return merged;
+  await writeFileProfile(cleaned);
+  return cleaned;
 }
 
 export function shouldSeedSampleClimb(): boolean {
