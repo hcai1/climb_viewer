@@ -32,7 +32,7 @@ function putOptions() {
 async function readBlobJson<T>(pathname: string): Promise<T | null> {
   try {
     const result = await get(pathname, { access: blobAccess() });
-    if (result.statusCode !== 200 || !result.stream) return null;
+    if (!result || result.statusCode !== 200 || !result.stream) return null;
 
     const text = await new Response(result.stream).text();
     return JSON.parse(text) as T;
