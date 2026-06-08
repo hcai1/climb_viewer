@@ -117,6 +117,11 @@ export async function blobSaveClimb(
   return climb;
 }
 
+export async function blobUpdateClimb(climb: Climb): Promise<Climb> {
+  await writeBlobJson(climbPath(climb.id), climb);
+  return climb;
+}
+
 export async function blobDeleteClimb(id: string): Promise<boolean> {
   if (!blobStorageEnabled()) return false;
 

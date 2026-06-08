@@ -38,7 +38,15 @@ export default async function ClimbDetailPage({ params }: PageProps) {
         <div className="mt-1 flex flex-wrap items-start justify-between gap-4">
           <h1 className="font-display text-4xl text-mountain-100">{climb.name}</h1>
           {authed && (
-            <DeleteClimbButton climbId={climb.id} climbName={climb.name} />
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={`/climbs/${climb.id}/edit`}
+                className="rounded-lg border border-mountain-700 px-4 py-2 text-sm text-mountain-200 transition hover:border-summit-500 hover:text-summit-400"
+              >
+                Edit
+              </Link>
+              <DeleteClimbButton climbId={climb.id} climbName={climb.name} />
+            </div>
           )}
         </div>
         {climb.description && (

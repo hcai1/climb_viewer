@@ -9,6 +9,7 @@ import {
   blobSaveClimb,
   blobSeedClimb,
   blobStorageEnabled,
+  blobUpdateClimb,
 } from "./blob-storage";
 import { shouldSeedSampleClimb } from "./site-profile-storage";
 import type { Climb, ClimbListItem, ClimbSummary } from "./types";
@@ -180,6 +181,32 @@ export async function saveClimb(
 
   if (backend === "file") {
     return fileSaveClimb(data);
+  }
+
+  throw new Error(
+    "Climb storage is not configured. Connect Vercel Blob storage to this project."
+  );
+}
+
+async function fileUpdateClimb(climb: Climb): Promise<Climb> {
+  await fs.writeFile(climbFilePath(climb.id), JSON.stringify(climb, null, 2));
+  return climb;
+}
+
+export async function updateClimb(climb: Climb): Promise<Climb> {
+  const backend = getStorageBackend();
+
+  if (backend === "blob") {
+    try {
+      return await blobUpdateClimb(climb);
+    } catch (error) {
+      console.error("Failed to update climb in blob storage:", error);
+      throw new Error("Failed to save changes. Check Vercel Blob storage.");
+    }
+  }
+
+  if (backend === "file") {
+    return fileUpdateClimb(climb);
   }
 
   throw new Error(
