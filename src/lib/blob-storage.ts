@@ -27,7 +27,6 @@ async function writeBlobJson(pathname: string, data: unknown) {
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
-    allowOverwrite: true,
   });
 }
 
