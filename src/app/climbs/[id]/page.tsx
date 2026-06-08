@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ClimbMap3D from "@/components/ClimbMap3D";
+import DeleteClimbButton from "@/components/DeleteClimbButton";
 import StatGrid from "@/components/StatGrid";
 import StatsCharts from "@/components/StatsCharts";
+import { isAdmin } from "@/lib/auth";
 import { getClimb } from "@/lib/storage";
+
+export const dynamic = "force-dynamic";
 
 type PageProps = { params: { id: string } };
 
 export default async function ClimbDetailPage({ params }: PageProps) {
   const { id } = params;
   const climb = await getClimb(id);
+  const authed = isAdmin();
 
   if (!climb) notFound();
 
@@ -30,9 +35,12 @@ export default async function ClimbDetailPage({ params }: PageProps) {
             day: "numeric",
           })}
         </p>
-        <h1 className="mt-1 font-display text-4xl text-mountain-100">
-          {climb.name}
-        </h1>
+        <div className="mt-1 flex flex-wrap items-start justify-between gap-4">
+          <h1 className="font-display text-4xl text-mountain-100">{climb.name}</h1>
+          {authed && (
+            <DeleteClimbButton climbId={climb.id} climbName={climb.name} />
+          )}
+        </div>
         {climb.description && (
           <p className="mt-3 max-w-3xl text-mountain-300">{climb.description}</p>
         )}
@@ -41,9 +49,7 @@ export default async function ClimbDetailPage({ params }: PageProps) {
       <StatGrid stats={climb.stats} />
 
       <section>
-        <h2 className="mb-4 font-display text-2xl text-mountain-100">
-          3D Route
-        </h2>
+        <h2 className="mb-4 font-display text-2xl text-mountain-100">3D Route</h2>
         <div className="h-[480px]">
           <ClimbMap3D points={climb.points} bounds={climb.bounds} />
         </div>

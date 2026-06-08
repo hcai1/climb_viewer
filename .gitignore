@@ -34,6 +34,7 @@ yarn-error.log*
 
 # uploaded climb data (persists on disk between visits; not committed to git)
 /data/climbs/*.json
+/data/site-profile.json
 !data/climbs/.gitkeep
 
 # typescript

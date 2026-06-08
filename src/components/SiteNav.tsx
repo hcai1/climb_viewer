@@ -16,16 +16,22 @@ export default function SiteNav() {
             href="/upload"
             className="rounded-lg bg-summit-500/90 px-4 py-2 font-medium text-mountain-950 transition hover:bg-summit-400"
           >
-            Upload GPX
+            Upload
+          </Link>
+          <Link
+            href="/settings"
+            className="text-mountain-400 transition hover:text-mountain-100"
+          >
+            Settings
           </Link>
           <SignOutButton />
         </>
       ) : (
         <Link
           href="/login"
-          className="text-mountain-400 transition hover:text-summit-400"
+          className="text-mountain-500 transition hover:text-mountain-400"
         >
-          Owner sign in
+          Sign in
         </Link>
       )}
     </nav>

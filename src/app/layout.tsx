@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import Link from "next/link";
 import SiteNav from "@/components/SiteNav";
+import { getSiteProfile } from "@/lib/site-profile-storage";
 import "./globals.css";
 
 const sans = DM_Sans({
@@ -14,17 +15,21 @@ const display = Fraunces({
   variable: "--font-display",
 });
 
-export const metadata: Metadata = {
-  title: "Peak Paths — Mountain Climb Showcase",
-  description:
-    "Upload GPX files and showcase your mountain climbs with 3D terrain, elevation profiles, and fitness stats.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const profile = await getSiteProfile();
+  return {
+    title: profile.siteTitle,
+    description: profile.bio,
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const profile = await getSiteProfile();
+
   return (
     <html lang="en">
       <body className={`${sans.variable} ${display.variable} font-sans antialiased`}>
@@ -37,7 +42,7 @@ export default function RootLayout({
               <Link href="/" className="group flex items-center gap-2">
                 <span className="text-2xl">⛰️</span>
                 <span className="font-display text-xl text-mountain-100 group-hover:text-summit-400">
-                  Peak Paths
+                  {profile.siteTitle}
                 </span>
               </Link>
               <SiteNav />
@@ -47,7 +52,7 @@ export default function RootLayout({
           <main className="relative mx-auto max-w-6xl px-6 py-10">{children}</main>
 
           <footer className="relative border-t border-mountain-800/60 py-6 text-center text-xs text-mountain-500">
-            Built for climbers — GPX in, 3D terrain out.
+            {profile.footer}
           </footer>
         </div>
       </body>

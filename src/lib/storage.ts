@@ -10,6 +10,7 @@ import {
   blobSeedClimb,
   blobStorageEnabled,
 } from "./blob-storage";
+import { shouldSeedSampleClimb } from "./site-profile-storage";
 import type { Climb, ClimbListItem, ClimbSummary } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data", "climbs");
@@ -201,6 +202,8 @@ export async function deleteClimb(id: string): Promise<boolean> {
 }
 
 export async function seedSampleClimb(): Promise<Climb | null> {
+  if (!shouldSeedSampleClimb()) return null;
+
   const backend = getStorageBackend();
 
   if (backend === "none") {
