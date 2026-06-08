@@ -1,10 +1,18 @@
 import { del, get, list, put } from "@vercel/blob";
 import type { Climb, ClimbListItem, ClimbSummary } from "./types";
 
-const MANIFEST_PATH = "climbs/manifest.json";
+const CLIMBS_PREFIX = "climbs/";
 
 function climbPath(id: string) {
-  return `climbs/${id}.json`;
+  return `${CLIMBS_PREFIX}${id}.json`;
+}
+
+function isClimbBlobPath(pathname: string) {
+  return (
+    pathname.startsWith(CLIMBS_PREFIX) &&
+    pathname.endsWith(".json") &&
+    !pathname.endsWith("manifest.json")
+  );
 }
 
 /** Detect Blob whether using legacy token or Vercel OIDC (BLOB_STORE_ID). */
@@ -51,7 +59,6 @@ async function writeBlobJson(pathname: string, data: unknown) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 
-    // Retry with the other access mode if store type doesn't match our default.
     if (access === "private" && message.toLowerCase().includes("access")) {
       await put(pathname, body, { ...putOptions(), access: "public" });
       return;
@@ -61,28 +68,34 @@ async function writeBlobJson(pathname: string, data: unknown) {
   }
 }
 
-async function readManifest(): Promise<ClimbListItem[]> {
-  return (await readBlobJson<ClimbListItem[]>(MANIFEST_PATH)) ?? [];
-}
-
-async function writeManifest(items: ClimbListItem[]) {
-  await writeBlobJson(
-    MANIFEST_PATH,
-    items.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    )
-  );
-}
-
 function toListItem(climb: Climb): ClimbListItem {
   const { points: _points, ...summary } = climb;
   return summary;
 }
 
+async function listClimbPathnames(): Promise<string[]> {
+  const { blobs } = await list({ prefix: CLIMBS_PREFIX, limit: 1000 });
+  return blobs.map((entry) => entry.pathname).filter(isClimbBlobPath);
+}
+
+async function loadAllClimbs(): Promise<ClimbListItem[]> {
+  const pathnames = await listClimbPathnames();
+  const items: ClimbListItem[] = [];
+
+  for (const pathname of pathnames) {
+    const climb = await readBlobJson<Climb>(pathname);
+    if (climb) items.push(toListItem(climb));
+  }
+
+  return items.sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+}
+
 export async function blobListClimbs(): Promise<ClimbListItem[]> {
   if (!blobStorageEnabled()) return [];
   try {
-    return await readManifest();
+    return await loadAllClimbs();
   } catch (error) {
     console.error("Failed to list climbs from blob storage:", error);
     return [];
@@ -91,12 +104,7 @@ export async function blobListClimbs(): Promise<ClimbListItem[]> {
 
 export async function blobGetClimb(id: string): Promise<Climb | null> {
   if (!blobStorageEnabled()) return null;
-  try {
-    return await readBlobJson<Climb>(climbPath(id));
-  } catch (error) {
-    console.error(`Failed to read climb ${id} from blob storage:`, error);
-    return null;
-  }
+  return readBlobJson<Climb>(climbPath(id));
 }
 
 export async function blobSaveClimb(
@@ -106,12 +114,6 @@ export async function blobSaveClimb(
 ): Promise<Climb> {
   const climb: Climb = { id, createdAt, ...data };
   await writeBlobJson(climbPath(climb.id), climb);
-
-  const manifest = await readManifest();
-  const summary = toListItem(climb);
-  const next = [summary, ...manifest.filter((item) => item.id !== climb.id)];
-  await writeManifest(next);
-
   return climb;
 }
 
@@ -127,10 +129,6 @@ export async function blobDeleteClimb(id: string): Promise<boolean> {
       await del(blob.url);
     }
 
-    const manifest = await readManifest();
-    const next = manifest.filter((item) => item.id !== id);
-    await writeManifest(next);
-
     return true;
   } catch (error) {
     console.error(`Failed to delete climb ${id} from blob storage:`, error);
@@ -140,8 +138,10 @@ export async function blobDeleteClimb(id: string): Promise<boolean> {
 
 export async function blobSeedClimb(climb: Climb): Promise<Climb | null> {
   try {
+    const existing = await readBlobJson<Climb>(climbPath(climb.id));
+    if (existing) return null;
+
     await writeBlobJson(climbPath(climb.id), climb);
-    await writeManifest([toListItem(climb)]);
     return climb;
   } catch (error) {
     console.error("Failed to seed sample climb to blob storage:", error);
@@ -151,8 +151,8 @@ export async function blobSeedClimb(climb: Climb): Promise<Climb | null> {
 
 export async function blobHasClimbs(): Promise<boolean> {
   try {
-    const manifest = await readManifest();
-    return manifest.length > 0;
+    const pathnames = await listClimbPathnames();
+    return pathnames.length > 0;
   } catch {
     return false;
   }

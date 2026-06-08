@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { computeBounds, computeStats, parseGpx } from "@/lib/gpx";
 import { getStorageBackend, listClimbs, saveClimb, seedSampleClimb } from "@/lib/storage";
 
+export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 function errorMessage(error: unknown): string {

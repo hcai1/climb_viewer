@@ -3,6 +3,8 @@ import StorageSetupBanner from "@/components/StorageSetupBanner";
 import { getStorageBackend, listClimbs, seedSampleClimb } from "@/lib/storage";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   await seedSampleClimb();
   const climbs = await listClimbs();
