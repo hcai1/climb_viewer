@@ -5,7 +5,8 @@ const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "",
   removeNSPrefix: true,
-  isArray: (name) => ["trkpt", "trkseg", "trk"].includes(name),
+  isArray: (name) =>
+    ["trkpt", "trkseg", "trk", "rte", "rtept"].includes(name),
 });
 
 function asArray<T>(value: T | T[] | undefined): T[] {
@@ -84,41 +85,53 @@ function extractExtensionNumber(
   return null;
 }
 
+function parseGpxPoint(pt: Record<string, unknown>): TrackPoint | null {
+  const lat = parseNumber(pt.lat);
+  const lon = parseNumber(pt.lon);
+  if (lat == null || lon == null) return null;
+
+  return {
+    lat,
+    lon,
+    ele: parseNumber(pt.ele),
+    time: typeof pt.time === "string" ? pt.time : null,
+    heartRate: extractHeartRate(pt.extensions),
+    speed: extractExtensionNumber(pt.extensions, [
+      "speed",
+      "TrackPointExtension.speed",
+    ]),
+    cadence: extractExtensionNumber(pt.extensions, [
+      "cad",
+      "TrackPointExtension.cad",
+      "gpxtpx:TrackPointExtension.gpxtpx:cad",
+    ]),
+    temperature: extractExtensionNumber(pt.extensions, [
+      "atemp",
+      "TrackPointExtension.atemp",
+      "gpxtpx:TrackPointExtension.gpxtpx:atemp",
+    ]),
+  };
+}
+
 export function parseGpx(gpxContent: string): TrackPoint[] {
   const doc = parser.parse(gpxContent);
   const gpx = doc.gpx ?? doc;
-  const tracks = asArray(gpx.trk);
   const points: TrackPoint[] = [];
 
-  for (const track of tracks) {
-    const segments = asArray(track.trkseg);
-    for (const segment of segments) {
+  for (const track of asArray(gpx.trk)) {
+    for (const segment of asArray(track.trkseg)) {
       for (const pt of asArray(segment.trkpt)) {
-        const lat = parseNumber(pt.lat);
-        const lon = parseNumber(pt.lon);
-        if (lat == null || lon == null) continue;
+        const parsed = parseGpxPoint(pt as Record<string, unknown>);
+        if (parsed) points.push(parsed);
+      }
+    }
+  }
 
-        points.push({
-          lat,
-          lon,
-          ele: parseNumber(pt.ele),
-          time: typeof pt.time === "string" ? pt.time : null,
-          heartRate: extractHeartRate(pt.extensions),
-          speed: extractExtensionNumber(pt.extensions, [
-            "speed",
-            "TrackPointExtension.speed",
-          ]),
-          cadence: extractExtensionNumber(pt.extensions, [
-            "cad",
-            "TrackPointExtension.cad",
-            "gpxtpx:TrackPointExtension.gpxtpx:cad",
-          ]),
-          temperature: extractExtensionNumber(pt.extensions, [
-            "atemp",
-            "TrackPointExtension.atemp",
-            "gpxtpx:TrackPointExtension.gpxtpx:atemp",
-          ]),
-        });
+  if (points.length === 0) {
+    for (const route of asArray(gpx.rte)) {
+      for (const pt of asArray(route.rtept)) {
+        const parsed = parseGpxPoint(pt as Record<string, unknown>);
+        if (parsed) points.push(parsed);
       }
     }
   }

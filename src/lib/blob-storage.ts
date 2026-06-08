@@ -1,4 +1,4 @@
-import { del, list, put } from "@vercel/blob";
+import { del, get, list, put } from "@vercel/blob";
 import type { Climb, ClimbListItem, ClimbSummary } from "./types";
 
 const MANIFEST_PATH = "climbs/manifest.json";
@@ -7,20 +7,35 @@ function climbPath(id: string) {
   return `climbs/${id}.json`;
 }
 
-function hasBlobToken() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+/** Detect Blob whether using legacy token or Vercel OIDC (BLOB_STORE_ID). */
+export function blobStorageEnabled() {
+  return Boolean(
+    process.env.BLOB_READ_WRITE_TOKEN?.trim() ||
+      process.env.BLOB_STORE_ID?.trim()
+  );
+}
+
+/** Match your Blob store type in Vercel (new stores default to private). */
+function blobAccess(): "public" | "private" {
+  return process.env.BLOB_ACCESS === "public" ? "public" : "private";
+}
+
+function putOptions() {
+  return {
+    access: blobAccess(),
+    contentType: "application/json",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  } as const;
 }
 
 async function readBlobJson<T>(pathname: string): Promise<T | null> {
   try {
-    const { blobs } = await list({ prefix: pathname, limit: 10 });
-    const blob = blobs.find((entry) => entry.pathname === pathname);
-    if (!blob) return null;
+    const result = await get(pathname, { access: blobAccess() });
+    if (result.statusCode !== 200 || !result.stream) return null;
 
-    const response = await fetch(blob.url, { cache: "no-store" });
-    if (!response.ok) return null;
-
-    return response.json() as Promise<T>;
+    const text = await new Response(result.stream).text();
+    return JSON.parse(text) as T;
   } catch (error) {
     console.error(`Failed to read blob ${pathname}:`, error);
     return null;
@@ -28,11 +43,22 @@ async function readBlobJson<T>(pathname: string): Promise<T | null> {
 }
 
 async function writeBlobJson(pathname: string, data: unknown) {
-  await put(pathname, JSON.stringify(data), {
-    access: "public",
-    contentType: "application/json",
-    addRandomSuffix: false,
-  });
+  const body = JSON.stringify(data);
+  const access = blobAccess();
+
+  try {
+    await put(pathname, body, putOptions());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    // Retry with the other access mode if store type doesn't match our default.
+    if (access === "private" && message.toLowerCase().includes("access")) {
+      await put(pathname, body, { ...putOptions(), access: "public" });
+      return;
+    }
+
+    throw error;
+  }
 }
 
 async function readManifest(): Promise<ClimbListItem[]> {
@@ -53,12 +79,8 @@ function toListItem(climb: Climb): ClimbListItem {
   return summary;
 }
 
-export function blobStorageEnabled() {
-  return hasBlobToken();
-}
-
 export async function blobListClimbs(): Promise<ClimbListItem[]> {
-  if (!hasBlobToken()) return [];
+  if (!blobStorageEnabled()) return [];
   try {
     return await readManifest();
   } catch (error) {
@@ -68,7 +90,7 @@ export async function blobListClimbs(): Promise<ClimbListItem[]> {
 }
 
 export async function blobGetClimb(id: string): Promise<Climb | null> {
-  if (!hasBlobToken()) return null;
+  if (!blobStorageEnabled()) return null;
   try {
     return await readBlobJson<Climb>(climbPath(id));
   } catch (error) {
@@ -94,14 +116,16 @@ export async function blobSaveClimb(
 }
 
 export async function blobDeleteClimb(id: string): Promise<boolean> {
-  if (!hasBlobToken()) return false;
+  if (!blobStorageEnabled()) return false;
 
   try {
-    const { blobs } = await list({ prefix: climbPath(id), limit: 1 });
-    const blob = blobs.find((entry) => entry.pathname === climbPath(id));
-    if (!blob) return false;
+    const pathname = climbPath(id);
+    const { blobs } = await list({ prefix: pathname, limit: 10 });
+    const blob = blobs.find((entry) => entry.pathname === pathname);
 
-    await del(blob.url);
+    if (blob) {
+      await del(blob.url);
+    }
 
     const manifest = await readManifest();
     const next = manifest.filter((item) => item.id !== id);

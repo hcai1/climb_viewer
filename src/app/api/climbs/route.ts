@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { computeBounds, computeStats, parseGpx } from "@/lib/gpx";
-import { listClimbs, saveClimb, seedSampleClimb } from "@/lib/storage";
+import { getStorageBackend, listClimbs, saveClimb, seedSampleClimb } from "@/lib/storage";
+
+export const maxDuration = 60;
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return "Failed to process GPX file.";
+}
 
 export async function GET() {
   await seedSampleClimb();
@@ -12,6 +19,17 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const authError = requireAdmin();
   if (authError) return authError;
+
+  if (getStorageBackend() === "none") {
+    return NextResponse.json(
+      {
+        error:
+          "Climb storage is not configured. Connect Vercel Blob storage to this project and redeploy.",
+      },
+      { status: 503 }
+    );
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get("gpx");
@@ -34,11 +52,23 @@ export async function POST(request: NextRequest) {
     }
 
     const content = await file.text();
-    const points = parseGpx(content);
+
+    let points;
+    try {
+      points = parseGpx(content);
+    } catch {
+      return NextResponse.json(
+        { error: "Could not parse GPX file. Check that it is valid XML." },
+        { status: 400 }
+      );
+    }
 
     if (points.length < 2) {
       return NextResponse.json(
-        { error: "GPX file must contain at least 2 track points." },
+        {
+          error:
+            "GPX file must contain at least 2 track or route points. Export a full activity track from your GPS app.",
+        },
         { status: 400 }
       );
     }
@@ -59,9 +89,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(climb, { status: 201 });
   } catch (error) {
     console.error("Upload failed:", error);
-    return NextResponse.json(
-      { error: "Failed to process GPX file." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: errorMessage(error) }, { status: 500 });
   }
 }
