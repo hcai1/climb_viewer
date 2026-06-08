@@ -14,6 +14,19 @@ import type { Climb, ClimbListItem, ClimbSummary } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data", "climbs");
 
+export type StorageBackend = "blob" | "file" | "none";
+
+export function getStorageBackend(): StorageBackend {
+  if (blobStorageEnabled()) return "blob";
+  if (process.env.VERCEL) return "none";
+  return "file";
+}
+
+/** @deprecated use getStorageBackend */
+export function storageBackend(): StorageBackend {
+  return getStorageBackend();
+}
+
 async function ensureDataDir() {
   await fs.mkdir(DATA_DIR, { recursive: true });
 }
@@ -38,9 +51,14 @@ async function loadSampleClimb(): Promise<Climb | null> {
 }
 
 async function fileListClimbs(): Promise<ClimbListItem[]> {
-  await ensureDataDir();
-  let files: string[];
+  try {
+    await ensureDataDir();
+  } catch (error) {
+    console.error("Failed to access local climb storage:", error);
+    return [];
+  }
 
+  let files: string[];
   try {
     files = await fs.readdir(DATA_DIR);
   } catch {
@@ -66,7 +84,6 @@ async function fileListClimbs(): Promise<ClimbListItem[]> {
 }
 
 async function fileGetClimb(id: string): Promise<Climb | null> {
-  await ensureDataDir();
   try {
     const raw = await fs.readFile(climbFilePath(id), "utf-8");
     return JSON.parse(raw) as Climb;
@@ -106,44 +123,100 @@ async function fileSeedSampleClimb(): Promise<Climb | null> {
   const sample = await loadSampleClimb();
   if (!sample) return null;
 
-  await fs.writeFile(climbFilePath(sample.id), JSON.stringify(sample, null, 2));
-  return sample;
-}
-
-export function storageBackend() {
-  return blobStorageEnabled() ? "blob" : "file";
+  try {
+    await ensureDataDir();
+    await fs.writeFile(climbFilePath(sample.id), JSON.stringify(sample, null, 2));
+    return sample;
+  } catch (error) {
+    console.error("Failed to seed sample climb locally:", error);
+    return null;
+  }
 }
 
 export async function listClimbs(): Promise<ClimbListItem[]> {
-  if (blobStorageEnabled()) return blobListClimbs();
-  return fileListClimbs();
+  const backend = getStorageBackend();
+
+  if (backend === "blob") {
+    return blobListClimbs();
+  }
+
+  if (backend === "file") {
+    return fileListClimbs();
+  }
+
+  return [];
 }
 
 export async function getClimb(id: string): Promise<Climb | null> {
-  if (blobStorageEnabled()) return blobGetClimb(id);
-  return fileGetClimb(id);
+  const backend = getStorageBackend();
+
+  if (backend === "blob") {
+    return blobGetClimb(id);
+  }
+
+  if (backend === "file") {
+    return fileGetClimb(id);
+  }
+
+  return null;
 }
 
 export async function saveClimb(
   data: Omit<ClimbSummary, "id" | "createdAt"> & { points: Climb["points"] }
 ): Promise<Climb> {
-  if (blobStorageEnabled()) {
-    return blobSaveClimb(data, uuidv4(), new Date().toISOString());
+  const backend = getStorageBackend();
+
+  if (backend === "blob") {
+    try {
+      return await blobSaveClimb(data, uuidv4(), new Date().toISOString());
+    } catch (error) {
+      console.error("Failed to save climb to blob storage:", error);
+      throw new Error(
+        "Failed to save climb. Check that Vercel Blob storage is connected."
+      );
+    }
   }
-  return fileSaveClimb(data);
+
+  if (backend === "file") {
+    return fileSaveClimb(data);
+  }
+
+  throw new Error(
+    "Climb storage is not configured. Connect Vercel Blob storage to this project."
+  );
 }
 
 export async function deleteClimb(id: string): Promise<boolean> {
-  if (blobStorageEnabled()) return blobDeleteClimb(id);
-  return fileDeleteClimb(id);
+  const backend = getStorageBackend();
+
+  if (backend === "blob") {
+    return blobDeleteClimb(id);
+  }
+
+  if (backend === "file") {
+    return fileDeleteClimb(id);
+  }
+
+  return false;
 }
 
 export async function seedSampleClimb(): Promise<Climb | null> {
-  if (blobStorageEnabled()) {
-    if (await blobHasClimbs()) return null;
-    const sample = await loadSampleClimb();
-    if (!sample) return null;
-    return blobSeedClimb(sample);
+  const backend = getStorageBackend();
+
+  if (backend === "none") {
+    return null;
+  }
+
+  if (backend === "blob") {
+    try {
+      if (await blobHasClimbs()) return null;
+      const sample = await loadSampleClimb();
+      if (!sample) return null;
+      return blobSeedClimb(sample);
+    } catch (error) {
+      console.error("Failed to seed sample climb:", error);
+      return null;
+    }
   }
 
   return fileSeedSampleClimb();

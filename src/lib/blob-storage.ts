@@ -12,14 +12,19 @@ function hasBlobToken() {
 }
 
 async function readBlobJson<T>(pathname: string): Promise<T | null> {
-  const { blobs } = await list({ prefix: pathname, limit: 10 });
-  const blob = blobs.find((entry) => entry.pathname === pathname);
-  if (!blob) return null;
+  try {
+    const { blobs } = await list({ prefix: pathname, limit: 10 });
+    const blob = blobs.find((entry) => entry.pathname === pathname);
+    if (!blob) return null;
 
-  const response = await fetch(blob.url, { cache: "no-store" });
-  if (!response.ok) return null;
+    const response = await fetch(blob.url, { cache: "no-store" });
+    if (!response.ok) return null;
 
-  return response.json() as Promise<T>;
+    return response.json() as Promise<T>;
+  } catch (error) {
+    console.error(`Failed to read blob ${pathname}:`, error);
+    return null;
+  }
 }
 
 async function writeBlobJson(pathname: string, data: unknown) {
@@ -54,12 +59,22 @@ export function blobStorageEnabled() {
 
 export async function blobListClimbs(): Promise<ClimbListItem[]> {
   if (!hasBlobToken()) return [];
-  return readManifest();
+  try {
+    return await readManifest();
+  } catch (error) {
+    console.error("Failed to list climbs from blob storage:", error);
+    return [];
+  }
 }
 
 export async function blobGetClimb(id: string): Promise<Climb | null> {
   if (!hasBlobToken()) return null;
-  return readBlobJson<Climb>(climbPath(id));
+  try {
+    return await readBlobJson<Climb>(climbPath(id));
+  } catch (error) {
+    console.error(`Failed to read climb ${id} from blob storage:`, error);
+    return null;
+  }
 }
 
 export async function blobSaveClimb(
@@ -81,26 +96,40 @@ export async function blobSaveClimb(
 export async function blobDeleteClimb(id: string): Promise<boolean> {
   if (!hasBlobToken()) return false;
 
-  const { blobs } = await list({ prefix: climbPath(id), limit: 1 });
-  const blob = blobs.find((entry) => entry.pathname === climbPath(id));
-  if (!blob) return false;
+  try {
+    const { blobs } = await list({ prefix: climbPath(id), limit: 1 });
+    const blob = blobs.find((entry) => entry.pathname === climbPath(id));
+    if (!blob) return false;
 
-  await del(blob.url);
+    await del(blob.url);
 
-  const manifest = await readManifest();
-  const next = manifest.filter((item) => item.id !== id);
-  await writeManifest(next);
+    const manifest = await readManifest();
+    const next = manifest.filter((item) => item.id !== id);
+    await writeManifest(next);
 
-  return true;
+    return true;
+  } catch (error) {
+    console.error(`Failed to delete climb ${id} from blob storage:`, error);
+    return false;
+  }
 }
 
-export async function blobSeedClimb(climb: Climb): Promise<Climb> {
-  await writeBlobJson(climbPath(climb.id), climb);
-  await writeManifest([toListItem(climb)]);
-  return climb;
+export async function blobSeedClimb(climb: Climb): Promise<Climb | null> {
+  try {
+    await writeBlobJson(climbPath(climb.id), climb);
+    await writeManifest([toListItem(climb)]);
+    return climb;
+  } catch (error) {
+    console.error("Failed to seed sample climb to blob storage:", error);
+    return null;
+  }
 }
 
 export async function blobHasClimbs(): Promise<boolean> {
-  const manifest = await readManifest();
-  return manifest.length > 0;
+  try {
+    const manifest = await readManifest();
+    return manifest.length > 0;
+  } catch {
+    return false;
+  }
 }

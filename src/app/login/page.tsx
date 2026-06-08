@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import LoginForm from "@/components/LoginForm";
-import { getAdminConfigError, getAdminPassword } from "@/lib/auth";
-import { storageBackend } from "@/lib/storage";
+import { getAdminConfigError } from "@/lib/auth";
+import { getStorageBackend } from "@/lib/storage";
 
 export default function LoginPage() {
   const configError = getAdminConfigError();
-  const backend = storageBackend();
+  const backend = getStorageBackend();
 
   return (
     <div className="mx-auto max-w-md">
@@ -21,7 +21,7 @@ export default function LoginPage() {
         </div>
       ) : (
         <>
-          {backend === "file" && process.env.VERCEL && (
+          {backend === "none" && (
             <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
               Climb storage is not configured on Vercel. Connect a{" "}
               <strong>Vercel Blob</strong> store to your project (Storage tab) so

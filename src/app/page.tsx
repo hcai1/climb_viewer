@@ -1,10 +1,11 @@
 import ClimbCard from "@/components/ClimbCard";
-import { listClimbs, seedSampleClimb } from "@/lib/storage";
+import { getStorageBackend, listClimbs, seedSampleClimb } from "@/lib/storage";
 import Link from "next/link";
 
 export default async function HomePage() {
   await seedSampleClimb();
   const climbs = await listClimbs();
+  const storage = getStorageBackend();
 
   return (
     <div>
@@ -17,6 +18,13 @@ export default async function HomePage() {
           mountain views with elevation, heart rate, and route stats.
         </p>
       </section>
+
+      {storage === "none" && (
+        <div className="mb-8 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          Climb storage is not configured on Vercel. Connect a{" "}
+          <strong>Vercel Blob</strong> store to this project so uploads persist.
+        </div>
+      )}
 
       {climbs.length === 0 ? (
         <div className="rounded-2xl border border-mountain-700/60 bg-mountain-900/40 p-12 text-center">
