@@ -11,6 +11,7 @@ import {
   blobStorageEnabled,
   blobUpdateClimb,
 } from "./blob-storage";
+import { refreshClimbStats } from "./gpx";
 import { shouldSeedSampleClimb } from "./site-profile-storage";
 import type { Climb, ClimbListItem, ClimbSummary } from "./types";
 
@@ -38,7 +39,8 @@ function climbFilePath(id: string) {
 }
 
 function toListItem(climb: Climb): ClimbListItem {
-  const { points: _points, ...summary } = climb;
+  const refreshed = refreshClimbStats(climb);
+  const { points: _points, ...summary } = refreshed;
   return summary;
 }
 
@@ -88,7 +90,8 @@ async function fileListClimbs(): Promise<ClimbListItem[]> {
 async function fileGetClimb(id: string): Promise<Climb | null> {
   try {
     const raw = await fs.readFile(climbFilePath(id), "utf-8");
-    return JSON.parse(raw) as Climb;
+    const climb = JSON.parse(raw) as Climb;
+    return refreshClimbStats(climb);
   } catch {
     return null;
   }

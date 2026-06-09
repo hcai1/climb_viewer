@@ -7,6 +7,8 @@ export interface TrackPoint {
   speed: number | null;
   cadence: number | null;
   temperature: number | null;
+  /** Cumulative distance from device extensions (meters), when present in GPX. */
+  cumulativeDistanceM?: number | null;
 }
 
 export interface ClimbStats {

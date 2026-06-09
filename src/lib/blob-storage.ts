@@ -1,4 +1,5 @@
 import { del, get, list, put } from "@vercel/blob";
+import { refreshClimbStats } from "./gpx";
 import type { Climb, ClimbListItem, ClimbSummary } from "./types";
 
 const CLIMBS_PREFIX = "climbs/";
@@ -69,7 +70,8 @@ async function writeBlobJson(pathname: string, data: unknown) {
 }
 
 function toListItem(climb: Climb): ClimbListItem {
-  const { points: _points, ...summary } = climb;
+  const refreshed = refreshClimbStats(climb);
+  const { points: _points, ...summary } = refreshed;
   return summary;
 }
 
@@ -104,7 +106,8 @@ export async function blobListClimbs(): Promise<ClimbListItem[]> {
 
 export async function blobGetClimb(id: string): Promise<Climb | null> {
   if (!blobStorageEnabled()) return null;
-  return readBlobJson<Climb>(climbPath(id));
+  const climb = await readBlobJson<Climb>(climbPath(id));
+  return climb ? refreshClimbStats(climb) : null;
 }
 
 export async function blobSaveClimb(

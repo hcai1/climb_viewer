@@ -42,6 +42,7 @@ function StatItem({
 
 export default function StatGrid({ stats }: StatGridProps) {
   return (
+    <div>
     <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       <StatItem
         label="Distance"
@@ -84,5 +85,11 @@ export default function StatGrid({ stats }: StatGridProps) {
         }
       />
     </dl>
+    <p className="mt-3 text-xs text-mountain-500">
+      Stats are computed from your GPX with Strava-style smoothing. Small
+      differences vs Strava are normal — they also apply their own map
+      corrections.
+    </p>
+    </div>
   );
 }
